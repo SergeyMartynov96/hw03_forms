@@ -1,7 +1,8 @@
-from django.core.paginator import Paginator
-from django.shortcuts import render, get_object_or_404
 from .models import Group, Post, User
 from .forms import PostForm
+from .utils import paginator
+
+from django.shortcuts import render, get_object_or_404
 from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
 
@@ -15,9 +16,7 @@ def index(request):
         'author',
         'group'
     )
-    paginator = Paginator(post_list, QUAN_POST)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    page_obj = paginator(request, post_list)
     context = {
         'page_obj': page_obj
     }
@@ -30,9 +29,7 @@ def group_posts(request, slug):
     post_list = group.posts.select_related(
         'author'
     )
-    paginator = Paginator(post_list, QUAN_POST)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    page_obj = paginator(request, post_list)
     context = {
         'group': group,
         'page_obj': page_obj
@@ -44,9 +41,7 @@ def profile(request, username):
     """Возвращает пользователю HTML-код из шаблона profile.html"""
     author = get_object_or_404(User, username=username)
     post_list = author.posts.all()
-    paginator = Paginator(post_list, 10)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    page_obj = paginator(request, post_list)
     context = {
         'author': author,
         'page_obj': page_obj,
@@ -66,15 +61,12 @@ def post_detail(request, post_id):
 @login_required
 def post_create(request):
     """Возвращает пользователю HTML-код из шаблона create_post.html"""
-    if request.method == 'POST':
-        form = PostForm(request.POST)
-        if form.is_valid():
-            post = form.save(commit=False)
-            post.author = request.user
-            post.save()
-            return redirect('posts:profile', post.author)
-        return render(request, "posts/create_post.html", {'form': form})
-    form = PostForm()
+    form = PostForm(request.POST or None)
+    if form.is_valid():
+        post = form.save(commit=False)
+        post.author = request.user
+        post.save()
+        return redirect('posts:profile', post.author)
     return render(request, "posts/create_post.html", {'form': form})
 
 
